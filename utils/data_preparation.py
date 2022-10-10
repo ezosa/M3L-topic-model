@@ -2,7 +2,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 import scipy.sparse
 import warnings
-from contextualized_topic_models.datasets.dataset import CTMDataset, PLTMDataset, PLTMSoftlinkDataset, M3LDataset
+from datasets.dataset import CTMDataset, M3LDataset
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.preprocessing import OneHotEncoder
 import pandas as pd
@@ -59,7 +59,6 @@ def check_max_local_length(max_seq_length, texts):
 
 
 def image_embeddings_from_file(image_urls, embedding_file):
-    #print('image_embeddings_from_file')
     print('image_urls:', len(image_urls))
     if 'resnet' in embedding_file:
         embeddings = pd.read_csv(embedding_file, header=None)
@@ -76,7 +75,7 @@ def image_embeddings_from_file(image_urls, embedding_file):
     return embeddings
 
 
-# ----- Multimodal and Multilingual -----
+# ----- Multimodal and Multilingual (M3L) -----
 
 class M3LTopicModelDataPreparation:
 
@@ -102,7 +101,6 @@ class M3LTopicModelDataPreparation:
         :param labels: list of labels associated with each document (optional).
 
         """
-        print("======= Data Prep =======")
         if self.contextualized_model is None:
             raise Exception("You should define a contextualized model if you want to create the embeddings")
 
@@ -130,8 +128,6 @@ class M3LTopicModelDataPreparation:
             train_contextualized_embeddings.append(train_contextualized_embeddings_lang)
             print('train_contextualized_embeddings_lang:', train_contextualized_embeddings_lang.shape)
             vocab_lang = vectorizer.get_feature_names()
-            #print('vocab_lang:', len(vocab_lang))
-            #self.vocab.append(vocab_lang)
             self.vocab_sizes.append(len(self.vocabularies[l]))
             id2token_lang = {k: v for k, v in zip(range(0, len(self.vocabularies[l])), self.vocabularies[l])}
             self.id2token.append(id2token_lang)
@@ -170,327 +166,6 @@ class M3LTopicModelDataPreparation:
             test_image_embeddings = None
 
         return M3LDataset(test_contextualized_embeddings, test_bow_embeddings, test_image_embeddings, self.id2token, is_inference=True)
-
-
-# ----- Multilingual -----
-
-# ----- Multilingual Softlink -----
-# this is for softlinked multilingual dataset
-# lang1 -> associated with multiple documents from lang2
-# text_for_contextual[0]: list of documents (raw)
-# text_for_contextual[1]: list of list of documents (raw)
-# text_for_bow[0]: list of documents (preprocessed)
-# text_for_bow[1]: list of list of documents (preprocessed)
-# class MultilingualSoftlinkTopicModelDataPreparation:
-#
-#     def __init__(self, contextualized_model=None, vocabularies=None, weights=None, len_docset=5):
-#         self.contextualized_model = contextualized_model
-#         self.vocabularies = vocabularies
-#         self.id2token = []
-#         self.vectorizers = []
-#         self.label_encoder = None
-#         self.vocab_sizes = []
-#         # weights for lang2 docs
-#         self.weights = weights
-#         # length of a single docset for lang2
-#         self.len_docset = len_docset
-#
-#     def load(self, contextualized_embeddings, bow_embeddings, id2token, weights):
-#         return PLTMSoftlinkDataset(contextualized_embeddings, bow_embeddings, id2token, weights)
-#
-#     # fit is for training data
-#     def fit(self, text_for_contextual, text_for_bow):
-#         """
-#         This method fits the vectorizer and gets the embeddings from the contextual model
-#
-#         :param text_for_contextual: list of list of unpreprocessed documents to generate the contextualized embeddings
-#         :param text_for_bow: list of list of preprocessed documents for creating the bag-of-words
-#
-#         """
-#
-#         if self.contextualized_model is None:
-#             raise Exception("You should define a contextualized model if you want to create the embeddings")
-#
-#         # TODO: this count vectorizer removes tokens that have len = 1, might be unexpected for the users
-#
-#         train_bow_embeddings, train_contextualized_embeddings = [], []
-#         for l in range(2):
-#             print("----- lang:", l, "-----")
-#             # process as normal for lang1 documents
-#             vectorizer = CountVectorizer(vocabulary=self.vocabularies[l])
-#             # lang1
-#             if l == 0:
-#                 # ----- get BoW vectors -----
-#                 train_bow_embeddings_lang = vectorizer.fit_transform(text_for_bow[0])
-#                 train_bow_embeddings.append(train_bow_embeddings_lang)
-#                 # ----- get SBERT embeddings -----
-#                 train_contextualized_embeddings_lang = bert_embeddings_from_list(text_for_contextual[0],
-#                                                                                  self.contextualized_model)
-#                 train_contextualized_embeddings.append(train_contextualized_embeddings_lang)
-#                 print('train_bow_embeddings_lang:', train_bow_embeddings_lang.shape)
-#                 print('train_contextualized_embeddings_lang:', train_contextualized_embeddings_lang.shape)
-#                 # ----- get vocab from vectorizer -----
-#                 vocab_lang = vectorizer.get_feature_names()
-#                 #print('vocab_lang:', len(vocab_lang))
-#                 self.vocab_sizes.append(len(self.vocabularies[0]))
-#                 id2token_lang = {k: v for k, v in zip(range(0, len(self.vocabularies[0])), self.vocabularies[0])}
-#                 self.id2token.append(id2token_lang)
-#             # lang2
-#             else:
-#                 # ----- get BoW vectors -----
-#                 # this is just for fitting the vectoriser for the BoW vectors
-#                 text_for_bow_flat = [doc for doc_set in text_for_bow[1] for doc in doc_set]
-#                 print('text_for_bow_flat:', len(text_for_bow_flat))
-#                 vocab_lang = vectorizer.fit(text_for_bow_flat).get_feature_names()
-#                 print('vocab_lang:', len(vocab_lang))
-#                 #train_bow_embeddings_lang = [vectorizer.transform(doc_set) for doc_set in text_for_bow[1]]
-#                 train_bow_embeddings_flat = vectorizer.transform(text_for_bow_flat)
-#                 train_bow_embeddings_lang = [train_bow_embeddings_flat[(i*self.len_docset):((i+1)*self.len_docset)]
-#                                              for i in range(len(text_for_bow[1]))]
-#                 print('train_bow_embeddings_lang:', len(train_bow_embeddings_lang))
-#                 train_bow_embeddings.append(train_bow_embeddings_lang)
-#                 print('train_bow_embeddings_lang:', len(train_bow_embeddings_lang))
-#                 # ----- get SBERT embeddings -----
-#                 text_for_contextual_flat = [doc for doc_set in text_for_contextual[1] for doc in doc_set]
-#                 print('text_for_contextual_flat:', len(text_for_contextual_flat))
-#                 train_contextualized_embeddings_flat = bert_embeddings_from_list(text_for_contextual_flat,
-#                                                                                  self.contextualized_model)
-#                 print('train_contextualized_embeddings_flat:', train_contextualized_embeddings_flat.shape)
-#                 train_contextualized_embeddings_lang = [train_contextualized_embeddings_flat[(i*self.len_docset):((i+1)*self.len_docset)]
-#                                              for i in range(len(text_for_contextual[1]))]
-#                 print('train_contextualized_embeddings_lang:', len(train_contextualized_embeddings_lang))
-#                 # train_contextualized_embeddings_lang = [bert_embeddings_from_list(doc_set, self.contextualized_model)
-#                 #                                         for doc_set in text_for_contextual[1]]
-#                 train_contextualized_embeddings.append(train_contextualized_embeddings_lang)
-#                 print('train_contextualized_embeddings_lang:', len(train_contextualized_embeddings_lang))
-#                 # ----- get vocab from vectorizer -----
-#                 # vocab_lang = vectorizer.get_feature_names()
-#                 # print('vocab_lang:', len(vocab_lang))
-#                 self.vocab_sizes.append(len(self.vocabularies[1]))
-#                 id2token_lang = {k: v for k, v in zip(range(0, len(self.vocabularies[1])), self.vocabularies[1])}
-#                 self.id2token.append(id2token_lang)
-#         return PLTMSoftlinkDataset(train_contextualized_embeddings, train_bow_embeddings, self.id2token,
-#                                    self.weights, self.len_docset)
-#
-#     # transform is for data during inference
-#     def transform(self, text_for_contextual, text_for_bow=None, labels=None):
-#         """
-#         This methods create the input for the prediction. Essentially, it creates the embeddings with the contextualized
-#         model of choice and with trained vectorizer.
-#
-#         If text_for_bow is missing, it should be because we are using ZeroShotTM
-#         """
-#
-#         if self.contextualized_model is None:
-#             raise Exception("You should define a contextualized model if you want to create the embeddings")
-#
-#         if text_for_bow is not None:
-#             test_bow_embeddings = self.vectorizer.transform(text_for_bow)
-#         else:
-#             # dummy matrix
-#             warnings.simplefilter('always', DeprecationWarning)
-#             warnings.warn("The method did not have in input the text_for_bow parameter. This IS EXPECTED if you "
-#                           "are using ZeroShotTM in a cross-lingual setting")
-#
-#             test_bow_embeddings = scipy.sparse.csr_matrix(np.zeros((len(text_for_contextual), 1)))
-#         test_contextualized_embeddings = bert_embeddings_from_list(text_for_contextual, self.contextualized_model)
-#
-#         if labels:
-#             encoded_labels = self.label_encoder.transform(np.array([labels]).reshape(-1, 1))
-#         else:
-#             encoded_labels = None
-#
-#         return CTMDataset(test_contextualized_embeddings, test_bow_embeddings, self.id2token, encoded_labels)
-
-
-class MultilingualTopicModelDataPreparation:
-
-    def __init__(self, contextualized_model=None, vocabularies=None):
-        self.contextualized_model = contextualized_model
-        self.vocabularies = vocabularies
-        self.id2token = []
-        self.vectorizers = []
-        self.label_encoder = None
-        self.vocab_sizes = []
-
-    def load(self, contextualized_embeddings, bow_embeddings, id2token, labels=None):
-        return PLTMDataset(contextualized_embeddings, bow_embeddings, id2token, labels)
-
-    # fit is for training data
-    def fit(self, text_for_contextual, text_for_bow, labels=None):
-        """
-        This method fits the vectorizer and gets the embeddings from the contextual model
-
-        :param text_for_contextual: list of list of unpreprocessed documents to generate the contextualized embeddings
-        :param text_for_bow: list of list of preprocessed documents for creating the bag-of-words
-        :param labels: list of labels associated with each document (optional).
-
-        """
-
-        if self.contextualized_model is None:
-            raise Exception("You should define a contextualized model if you want to create the embeddings")
-
-        # TODO: this count vectorizer removes tokens that have len = 1, might be unexpected for the users
-
-        num_lang = len(text_for_bow)
-        train_bow_embeddings, train_contextualized_embeddings = [], []
-        for l in range(num_lang):
-            print("----- lang:", l, "-----")
-            vectorizer = CountVectorizer(vocabulary=self.vocabularies[l])
-            train_bow_embeddings_lang = vectorizer.fit_transform(text_for_bow[l])
-            if len(self.contextualized_model.split(",")) == 1:
-                print('context_model:', self.contextualized_model)
-                train_contextualized_embeddings_lang = bert_embeddings_from_list(text_for_contextual[l], self.contextualized_model)
-            else:
-                context_model = self.contextualized_model.split(",")[l].strip()
-                print('context_model:', context_model)
-                train_contextualized_embeddings_lang = bert_embeddings_from_list(text_for_contextual[l], context_model)
-            train_bow_embeddings.append(train_bow_embeddings_lang)
-            train_contextualized_embeddings.append(train_contextualized_embeddings_lang)
-            print('train_bow_embeddings_lang:', train_bow_embeddings_lang.shape)
-            print('train_contextualized_embeddings_lang:', train_contextualized_embeddings_lang.shape)
-            vocab_lang = vectorizer.get_feature_names()
-            print('vocab_lang:', len(vocab_lang))
-            #self.vocab.append(vocab_lang)
-            self.vocab_sizes.append(len(self.vocabularies[l]))
-            id2token_lang = {k: v for k, v in zip(range(0, len(self.vocabularies[l])), self.vocabularies[l])}
-            self.id2token.append(id2token_lang)
-
-        # don't care about labels for now
-        if labels:
-            self.label_encoder = OneHotEncoder()
-            encoded_labels = self.label_encoder.fit_transform(np.array([labels]).reshape(-1, 1))
-        else:
-            encoded_labels = None
-
-        return PLTMDataset(train_contextualized_embeddings, train_bow_embeddings, self.id2token, encoded_labels, num_lang)
-
-    # transform is for data during inference--dataset is monolingual during inference
-    def transform(self, text_for_contextual, lang_index=0):
-        """
-        This methods create the input for the prediction. Essentially, it creates the embeddings with the contextualized
-        model of choice and with trained vectorizer.
-
-        If text_for_bow is missing, it should be because we are using ZeroShotTM
-        """
-
-
-        if self.contextualized_model is None:
-            raise Exception("You should define a contextualized model if you want to create the embeddings")
-
-        # if text_for_bow is not None:
-        #     test_bow_embeddings = self.vectorizer.transform(text_for_bow)
-        # else:
-        #     # dummy matrix
-        #     warnings.simplefilter('always', DeprecationWarning)
-        #     warnings.warn("The method did not have in input the text_for_bow parameter. This IS EXPECTED if you "
-        #                   "are using ZeroShotTM in a cross-lingual setting")
-
-        # create dummy matrix for Bow
-        test_bow_embeddings = scipy.sparse.csr_matrix(np.zeros((len(text_for_contextual), 1)))
-        #print('test_bow_embeddings:', test_bow_embeddings.shape)
-        # get SBERT embeddings for contextualized
-        if len(self.contextualized_model.split(",")) == 1:
-            print('context_model:', self.contextualized_model)
-            test_contextualized_embeddings = bert_embeddings_from_list(text_for_contextual, self.contextualized_model)
-        else:
-            context_model = self.contextualized_model.split(",")[lang_index].strip()
-            print('context_model:', context_model)
-            test_contextualized_embeddings = bert_embeddings_from_list(text_for_contextual, context_model)
-        #test_contextualized_embeddings = bert_embeddings_from_list(text_for_contextual, self.contextualized_model)
-        #print('test_contextualized_embeddings:', test_contextualized_embeddings.shape)
-
-        return PLTMDataset(test_contextualized_embeddings, test_bow_embeddings, self.id2token, is_inference=True)
-
-
-
-# This is for unaligned SBERT embeddings where we us separate SBERT models for each languages
-# SBERT models passed as a string separated by comma (",")
-class MultilingualUnalignedTopicModelDataPreparation:
-
-    def __init__(self, contextualized_models=None, vocabularies=None):
-        self.contextualized_models = contextualized_models.split(",")
-        self.vocabularies = vocabularies
-        self.id2token = []
-        self.vectorizers = []
-        self.label_encoder = None
-        self.vocab_sizes = []
-
-    def load(self, contextualized_embeddings, bow_embeddings, id2token, labels=None):
-        return PLTMDataset(contextualized_embeddings, bow_embeddings, id2token, labels)
-
-    # fit is for training data
-    def fit(self, text_for_contextual, text_for_bow, labels=None):
-        """
-        This method fits the vectorizer and gets the embeddings from the contextual model
-
-        :param text_for_contextual: list of list of unpreprocessed documents to generate the contextualized embeddings
-        :param text_for_bow: list of list of preprocessed documents for creating the bag-of-words
-        :param labels: list of labels associated with each document (optional).
-
-        """
-
-        if self.contextualized_models is None:
-            raise Exception("You should define a contextualized model if you want to create the embeddings")
-
-        # TODO: this count vectorizer removes tokens that have len = 1, might be unexpected for the users
-
-        num_lang = len(text_for_bow)
-        train_bow_embeddings, train_contextualized_embeddings = [], []
-        for l in range(num_lang):
-            print("----- lang:", l, "-----")
-            contextualized_model = self.contextualized_models[l]
-            print("contextualized_model:", contextualized_model)
-            vectorizer = CountVectorizer(vocabulary=self.vocabularies[l])
-            train_bow_embeddings_lang = vectorizer.fit_transform(text_for_bow[l])
-            train_contextualized_embeddings_lang = bert_embeddings_from_list(text_for_contextual[l], contextualized_model)
-            train_bow_embeddings.append(train_bow_embeddings_lang)
-            train_contextualized_embeddings.append(train_contextualized_embeddings_lang)
-            print('train_bow_embeddings_lang:', train_bow_embeddings_lang.shape)
-            print('train_contextualized_embeddings_lang:', train_contextualized_embeddings_lang.shape)
-            vocab_lang = vectorizer.get_feature_names()
-            print('vocab_lang:', len(vocab_lang))
-            #self.vocab.append(vocab_lang)
-            self.vocab_sizes.append(len(self.vocabularies[l]))
-            id2token_lang = {k: v for k, v in zip(range(0, len(self.vocabularies[l])), self.vocabularies[l])}
-            self.id2token.append(id2token_lang)
-
-        # don't care about labels for now
-        if labels:
-            self.label_encoder = OneHotEncoder()
-            encoded_labels = self.label_encoder.fit_transform(np.array([labels]).reshape(-1, 1))
-        else:
-            encoded_labels = None
-
-        return PLTMDataset(train_contextualized_embeddings, train_bow_embeddings, self.id2token, encoded_labels)
-
-    # transform is for data during inference--dataset is monolingual during inference
-    def transform(self, text_for_contextual):
-        """
-        This methods create the input for the prediction. Essentially, it creates the embeddings with the contextualized
-        model of choice and with trained vectorizer.
-
-        If text_for_bow is missing, it should be because we are using ZeroShotTM
-        """
-
-        if self.contextualized_models is None:
-            raise Exception("You should define a contextualized model if you want to create the embeddings")
-
-        # if text_for_bow is not None:
-        #     test_bow_embeddings = self.vectorizer.transform(text_for_bow)
-        # else:
-        #     # dummy matrix
-        #     warnings.simplefilter('always', DeprecationWarning)
-        #     warnings.warn("The method did not have in input the text_for_bow parameter. This IS EXPECTED if you "
-        #                   "are using ZeroShotTM in a cross-lingual setting")
-
-        # create dummy matrix for Bow
-        test_bow_embeddings = scipy.sparse.csr_matrix(np.zeros((len(text_for_contextual), 1)))
-        # TODO: we need to pass the language here to know which SBERT model to use during inference
-        test_contextualized_embeddings = bert_embeddings_from_list(text_for_contextual, self.contextualized_models[0])
-        #print('test_contextualized_embeddings:', test_contextualized_embeddings.shape)
-
-        return PLTMDataset(test_contextualized_embeddings, test_bow_embeddings, self.id2token, is_inference=True)
 
 
 # ---- Original -----

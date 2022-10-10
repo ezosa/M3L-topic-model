@@ -12,13 +12,12 @@ from torch import optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
-import torch.distributions as distrib
 from tqdm import tqdm
 from utils.early_stopping.early_stopping import EarlyStopping
 from networks.decoding_network import ContrastiveM3LDecoderNetwork
 
 # for contrastive loss
-from pytorch_metric_learning.losses import ContrastiveLoss, NPairsLoss, NTXentLoss
+from pytorch_metric_learning.losses import NTXentLoss
 
 class MultimodalContrastiveTM:
     """Class to train the contextualized topic model. This is the more general class that we are keeping to
@@ -85,36 +84,21 @@ class MultimodalContrastiveTM:
         self.num_lang = len(languages)
         # bow_size is an array of size n_languages; one bow_size for each language
         self.bow_size = bow_size
-        #n_components is same for all languages
         self.n_components = n_components
-        #model_type is same for all languages
         self.model_type = model_type
-        #hidden_sizes is same for all languages
         self.hidden_sizes = hidden_sizes
-        #activation is same for all languages
         self.activation = activation
-        #dropout is same for all langs
         self.dropout = dropout
-        #learn_priors is same for all langs
         self.learn_priors = learn_priors
-        #batch_size is same for all langs
         self.batch_size = batch_size
-        #lr is same for all langs
         self.lr = lr
-        #contextual_size is same for all langs
         self.contextual_sizes = contextual_sizes
-        # same
         self.momentum = momentum
-        # same
         self.solver = solver
-        # same
         self.num_epochs = num_epochs
-        # same
         self.reduce_on_plateau = reduce_on_plateau
-        # name
         self.num_data_loader_workers = num_data_loader_workers
 
-        # same for now
         if loss_weights:
             self.weights = loss_weights
         else:
@@ -171,11 +155,11 @@ class MultimodalContrastiveTM:
         infonce_loss = loss_func(embeddings_cat, labels)
         return infonce_loss
 
-    def _theta_kl_loss(self, thetas1, thetas2):
+    def _kl_loss1(self, thetas1, thetas2):
         theta_kld = F.kl_div(thetas1.log(), thetas2, reduction='sum')
         return theta_kld
 
-    def _kl_loss(self, prior_mean, prior_variance,
+    def _kl_loss2(self, prior_mean, prior_variance,
               posterior_mean, posterior_variance, posterior_log_variance):
         # KL term
         # var division term
@@ -225,7 +209,7 @@ class MultimodalContrastiveTM:
             prior_mean, prior_variance, posterior_mean1, posterior_variance1, posterior_log_variance1, \
             posterior_mean2, posterior_variance2, posterior_log_variance2, \
             posterior_mean3, posterior_variance3, posterior_log_variance3, \
-            word_dists, thetas, z_samples = self.model(X_bow, X_contextual, X_image)
+            word_dists, thetas = self.model(X_bow, X_contextual, X_image)
 
             # backward pass
 
@@ -234,9 +218,9 @@ class MultimodalContrastiveTM:
             rl_loss2 = self._rl_loss(X_bow[:,1,:], word_dists[1])
 
             # KL loss
-            kl_en_de = self._theta_kl_loss(thetas[0], thetas[1])
-            kl_en_image = self._theta_kl_loss(thetas[0], thetas[2])
-            kl_de_image = self._theta_kl_loss(thetas[1], thetas[2])
+            kl_en_de = self._kl_loss1(thetas[0], thetas[1])
+            kl_en_image = self._kl_loss1(thetas[0], thetas[2])
+            kl_de_image = self._kl_loss1(thetas[1], thetas[2])
 
             # InfoNCE loss/NTXentLoss
             infoNCE_en_de = self._infoNCE_loss(thetas[0], thetas[1])
@@ -364,22 +348,20 @@ class MultimodalContrastiveTM:
         for batch_samples in loader:
             # batch_size x L x vocab_size
             X_bow = batch_samples['X_bow']
-            print('X_bow orig:', X_bow.shape)
             X_bow = X_bow.squeeze(dim=2)
-            print('X_bow squeeze:', X_bow.shape)
 
             # batch_size x L x bert_size
             X_contextual = batch_samples['X_contextual']
-            print('X_contextual:', X_contextual.shape)
 
-            if self.USE_CUDA:
-                X_bow = X_bow.cuda()
-                X_contextual = X_contextual.cuda()
+            # batch_size x image_enc_size
+            X_image = batch_samples['X_image']
 
             # forward pass
             self.model.zero_grad()
-            posterior_mean1, posterior_variance1, posterior_mean2, posterior_variance2,\
-            posterior_log_variance2, word_dists, thetas = self.model(X_contextual)
+            prior_mean, prior_variance, posterior_mean1, posterior_variance1, posterior_log_variance1, \
+            posterior_mean2, posterior_variance2, posterior_log_variance2, \
+            posterior_mean3, posterior_variance3, posterior_log_variance3, \
+            word_dists, thetas = self.model(X_bow, X_contextual, X_image)
 
             # backward pass
 
@@ -388,9 +370,9 @@ class MultimodalContrastiveTM:
             rl_loss2 = self._rl_loss(X_bow[:,1,:], word_dists[1])
 
             # KL loss
-            kl_en_de = self._theta_kl_loss(thetas[0], thetas[1])
-            kl_en_image = self._theta_kl_loss(thetas[0], thetas[2])
-            kl_de_image = self._theta_kl_loss(thetas[1], thetas[2])
+            kl_en_de = self._kl_loss1(thetas[0], thetas[1])
+            kl_en_image = self._kl_loss1(thetas[0], thetas[2])
+            kl_de_image = self._kl_loss1(thetas[1], thetas[2])
 
             # InfoNCE loss/NTXentLoss
             infoNCE_en_de = self._infoNCE_loss(thetas[0], thetas[1])

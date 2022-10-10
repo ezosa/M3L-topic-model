@@ -1,22 +1,15 @@
 import os
 import pandas as pd
-# import torch
-# import string
-# import numpy as np
-# from gensim.corpora import Dictionary
-# from gensim.models.coherencemodel import CoherenceModel
-
 from models.M3L_contrast import MultimodalContrastiveTM
-from contextualized_topic_models.utils.data_preparation import M3LTopicModelDataPreparation
-from contextualized_topic_models.utils.preprocessing import WhiteSpacePreprocessingM3L
-# from contextualized_topic_models.evaluation.measures import TopicDiversity
+from utils.data_preparation import M3LTopicModelDataPreparation
+from utils.preprocessing import WhiteSpacePreprocessingM3L
 
 import argparse
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--model_name', default='contrast_m3l', type=str)
 argparser.add_argument('--data_path', default='data/', type=str)
 argparser.add_argument('--save_path', default='trained_models/', type=str)
-argparser.add_argument('--train_data', default='wikiarticles_fi-de-en-images-train-unique.csv.csv', type=str)
+argparser.add_argument('--train_data', default='wikiarticles.csv', type=str)
 argparser.add_argument('--num_topics', default=100, type=int)
 argparser.add_argument('--num_epochs', default=100, type=int)
 argparser.add_argument('--langs', default='en,de', type=str)
@@ -24,7 +17,6 @@ argparser.add_argument('--sbert_model', default='paraphrase-multilingual-mpnet-b
 argparser.add_argument('--image_embeddings', default='wiki_clip.csv', type=str)
 argparser.add_argument('--text_enc_dim', default=768, type=int)
 argparser.add_argument('--image_enc_dim', default=2048, type=int)
-argparser.add_argument('--loss_weights', default=1.0, type=float)
 argparser.add_argument('--batch_size', default=160, type=int)
 argparser.add_argument('--max_seq_length', default=200, type=int)
 args = argparser.parse_args()
@@ -41,7 +33,6 @@ print("sbert_model:", args.sbert_model)
 print("image_embeddings:", args.image_embeddings)
 print("text_enc_dim:", args.text_enc_dim)
 print("image_enc_dim:", args.image_enc_dim)
-print("loss_weights:", args.loss_weights)
 print("batch_size:", args.batch_size)
 print("max_seq_length:", args.max_seq_length)
 print("-"*40 + "\n")
@@ -49,8 +40,7 @@ print("-"*40 + "\n")
 
 # stopwords lang dict
 lang_dict = {'en': 'english',
-             'de': 'german',
-             'fi': 'finnish'}
+             'de': 'german'}
 
 # ----- load dataset -----
 df = pd.read_csv(os.path.join(args.data_path, args.train_data))
