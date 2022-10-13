@@ -6,19 +6,21 @@ from utils.preprocessing import WhiteSpacePreprocessingM3L
 
 import argparse
 argparser = argparse.ArgumentParser()
-argparser.add_argument('--model_name', default='contrast_m3l', type=str)
+argparser.add_argument('--model_name', default='M3LContrast', type=str)
 argparser.add_argument('--data_path', default='data/', type=str)
 argparser.add_argument('--save_path', default='trained_models/', type=str)
 argparser.add_argument('--train_data', default='wikiarticles.csv', type=str)
 argparser.add_argument('--num_topics', default=100, type=int)
 argparser.add_argument('--num_epochs', default=100, type=int)
-argparser.add_argument('--langs', default='en,de', type=str)
-argparser.add_argument('--sbert_model', default='paraphrase-multilingual-mpnet-base-v2', type=str)
+argparser.add_argument('--langs', default='en,de', type=str, help='comma-separated lang codes for multilingual')
+argparser.add_argument('--sbert_model', default='clip-ViT-B-32-multilingual-v1', type=str)
 argparser.add_argument('--image_embeddings', default='wiki_clip.csv', type=str)
-argparser.add_argument('--text_enc_dim', default=768, type=int)
-argparser.add_argument('--image_enc_dim', default=2048, type=int)
-argparser.add_argument('--batch_size', default=160, type=int)
+argparser.add_argument('--text_enc_dim', default=512, type=int, help='encoding size sbert_model')
+argparser.add_argument('--image_enc_dim', default=512, type=int, help='encoding size of image embeddings')
+argparser.add_argument('--batch_size', default=32, type=int)
 argparser.add_argument('--max_seq_length', default=200, type=int)
+argparser.add_argument('--kl_weight', default=0.01, type=int, help='weight for the KLD loss')
+argparser.add_argument('--cl_weight', default=50, type=int, help='weight for the contrastive loss')
 args = argparser.parse_args()
 
 print("\n" + "-"*5, "Train M3L-Contrast TM", "-"*5)
@@ -35,6 +37,8 @@ print("text_enc_dim:", args.text_enc_dim)
 print("image_enc_dim:", args.image_enc_dim)
 print("batch_size:", args.batch_size)
 print("max_seq_length:", args.max_seq_length)
+print("kl_weight:", args.kl_weight)
+print("cl_weight:", args.cl_weight)
 print("-"*40 + "\n")
 
 
@@ -77,21 +81,26 @@ qt = M3LTopicModelDataPreparation(args.sbert_model, vocabularies=vocab, image_em
 training_dataset = qt.fit(text_for_contextual=raw_docs, text_for_bow=preprocessed_docs, image_urls=image_urls)
 
 
-
 # initialize model
+loss_weights = {"KL": args.kl_weight,
+                "CL": args.cl_weight}
 m3l_contrast = MultimodalContrastiveTM(bow_size=qt.vocab_sizes[0],
                                        contextual_sizes=(args.text_enc_dim, args.image_enc_dim),
-                                       n_components=args.num_topics, num_epochs=args.num_epochs, languages=languages,
-                                       batch_size=args.batch_size)
+                                       n_components=args.num_topics,
+                                       num_epochs=args.num_epochs,
+                                       languages=languages,
+                                       batch_size=args.batch_size,
+                                       loss_weights=loss_weights
+                                       )
 
 # start topic inference
 m3l_contrast.fit(training_dataset)
 
 # save trained model
-save_filepath = os.path.join(args.save_path, args.model_name + "_KL" + str(args.loss_weights)
-                             + '_K' + str(args.num_topics)
-                             + '_epochs' + str(args.num_epochs)
-                             + "_len" + str(args.max_seq_length) + "_batch" + str(args.batch_size))
+save_filepath = os.path.join(args.save_path, args.model_name
+                             + "_K" + str(args.num_topics)
+                             + "_epochs" + str(args.num_epochs)
+                             + "_batch" + str(args.batch_size))
 m3l_contrast.save(save_filepath)
 
 print("Done! Saved model as", save_filepath)
