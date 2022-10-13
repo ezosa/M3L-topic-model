@@ -13,15 +13,15 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from tqdm import tqdm
-from utils.early_stopping.early_stopping import EarlyStopping
+from contextualized_topic_models.utils.early_stopping.early_stopping import EarlyStopping
 
 # decooder network
-from networks.decoding_network import ContrastiveM3LDecoderNetwork
+from contextualized_topic_models.networks.decoding_network import ContrastiveDecoderNetwork
 
 # for contrastive loss
 from pytorch_metric_learning.losses import NTXentLoss
 
-class MultimodalContrastiveTM:
+class MultilingualContrastiveTM:
     """Class to train the contextualized topic model. This is the more general class that we are keeping to
     avoid braking code, users should use the two subclasses ZeroShotTM and CombinedTm to do topic modeling.
 
@@ -47,7 +47,7 @@ class MultimodalContrastiveTM:
 
     """
 
-    def __init__(self, bow_size, contextual_sizes=(768, 2048), n_components=10, model_type='prodLDA',
+    def __init__(self, bow_size, contextual_size, n_components=10, model_type='prodLDA',
                  hidden_sizes=(100, 100), activation='softplus', dropout=0.2, learn_priors=True, batch_size=16,
                  lr=2e-3, momentum=0.99, solver='adam', num_epochs=100, reduce_on_plateau=False,
                  num_data_loader_workers=mp.cpu_count(), label_size=0, loss_weights=None, languages=None):
@@ -86,29 +86,44 @@ class MultimodalContrastiveTM:
         self.num_lang = len(languages)
         # bow_size is an array of size n_languages; one bow_size for each language
         self.bow_size = bow_size
+        #n_components is same for all languages
         self.n_components = n_components
+        #model_type is same for all languages
         self.model_type = model_type
+        #hidden_sizes is same for all languages
         self.hidden_sizes = hidden_sizes
+        #activation is same for all languages
         self.activation = activation
+        #dropout is same for all langs
         self.dropout = dropout
+        #learn_priors is same for all langs
         self.learn_priors = learn_priors
+        #batch_size is same for all langs
         self.batch_size = batch_size
+        #lr is same for all langs
         self.lr = lr
-        self.contextual_sizes = contextual_sizes
+        #contextual_size is same for all langs
+        self.contextual_size = contextual_size
+        # same
         self.momentum = momentum
+        # same
         self.solver = solver
+        # same
         self.num_epochs = num_epochs
+        # same
         self.reduce_on_plateau = reduce_on_plateau
+        # name
         self.num_data_loader_workers = num_data_loader_workers
 
+        # same for now
         if loss_weights:
             self.weights = loss_weights
         else:
             self.weights = {"KL": 0.01, "CL": 50}
 
         # contrastive decoder
-        self.model = ContrastiveM3LDecoderNetwork(
-            bow_size, self.contextual_sizes, n_components, model_type, hidden_sizes, activation,
+        self.model = ContrastiveDecoderNetwork(
+            bow_size, self.contextual_size, n_components, model_type, hidden_sizes, activation,
             dropout, learn_priors, label_size=label_size)
 
         self.early_stopping = None
@@ -189,57 +204,40 @@ class MultimodalContrastiveTM:
         train_loss = 0
         samples_processed = 0
 
-        for batch_samples in loader:
+        for batch_num, batch_samples in enumerate(loader):
             # batch_size x L x vocab_size
             X_bow = batch_samples['X_bow']
             X_bow = X_bow.squeeze(dim=2)
 
             # batch_size x L x bert_size
             X_contextual = batch_samples['X_contextual']
-
-            # batch_size x image_enc_size
-            X_image = batch_samples['X_image']
+            #print('X_contextual:', X_contextual.shape)
 
             if self.USE_CUDA:
                 X_bow = X_bow.cuda()
                 X_contextual = X_contextual.cuda()
-                X_image = X_image.cuda()
 
             # forward pass
             self.model.zero_grad()
-            prior_mean, prior_variance, posterior_mean1, posterior_variance1, posterior_log_variance1, \
-            posterior_mean2, posterior_variance2, posterior_log_variance2, \
-            posterior_mean3, posterior_variance3, posterior_log_variance3, \
-            word_dists, thetas = self.model(X_bow, X_contextual, X_image)
+            prior_mean, prior_variance, posterior_mean1, posterior_variance1, posterior_log_variance1,\
+            posterior_mean2, posterior_variance2, posterior_log_variance2, word_dists, thetas, z_samples = self.model(X_bow, X_contextual)
 
             # backward pass
 
-            # Recon loss for lang1 and lang2 (no recon loss for image)
+            # recon_losses for each language
             rl_loss1 = self._rl_loss(X_bow[:,0,:], word_dists[0])
             rl_loss2 = self._rl_loss(X_bow[:,1,:], word_dists[1])
 
-            # # KL loss
-            # kl_en_de = self._kl_loss1(thetas[0], thetas[1])
-            # kl_en_image = self._kl_loss1(thetas[0], thetas[2])
-            # kl_de_image = self._kl_loss1(thetas[1], thetas[2])
-
-            # KL loss between posterior distributions of paired languages/modalities
-            kl_en_de = self._kl_loss2(posterior_mean1, posterior_variance1,
-                                          posterior_mean2, posterior_variance2, posterior_log_variance2)
-            kl_en_image = self._kl_loss2(posterior_mean1, posterior_variance1,
-                                          posterior_mean3, posterior_variance3, posterior_log_variance3)
-            kl_de_image = self._kl_loss2(posterior_mean2, posterior_variance2,
-                                          posterior_mean3, posterior_variance3, posterior_log_variance3)
+            # KL between distributions of every language pair
+            kl_cross = self._kl_loss2(posterior_mean1, posterior_variance1,
+                                 posterior_mean2, posterior_variance2, posterior_log_variance2)
 
             # InfoNCE loss/NTXentLoss
-            infoNCE_en_de = self._infoNCE_loss(thetas[0], thetas[1])
-            infoNCE_en_image = self._infoNCE_loss(thetas[0], thetas[2])
-            infoNCE_de_image = self._infoNCE_loss(thetas[1], thetas[2])
+            infoNCE_cross = self._infoNCE_loss(thetas[0], thetas[1])
 
-            loss = rl_loss1 + rl_loss2 \
-                   + self.weights["KL"] * kl_en_de + self.weights["KL"] * kl_en_image + self.weights["KL"] * kl_de_image \
-                   + self.weights["CL"]*infoNCE_en_de + self.weights["CL"]*infoNCE_en_image + self.weights["CL"]*infoNCE_de_image
-
+            loss = rl_loss1 + rl_loss2 + \
+                   self.weights["KL"]*kl_cross + \
+                   self.weights["CL"]*infoNCE_cross
             loss = loss.sum()
             loss.backward()
             self.optimizer.step()
@@ -358,50 +356,37 @@ class MultimodalContrastiveTM:
         for batch_samples in loader:
             # batch_size x L x vocab_size
             X_bow = batch_samples['X_bow']
+            print('X_bow orig:', X_bow.shape)
             X_bow = X_bow.squeeze(dim=2)
+            print('X_bow squeeze:', X_bow.shape)
 
             # batch_size x L x bert_size
             X_contextual = batch_samples['X_contextual']
+            print('X_contextual:', X_contextual.shape)
 
-            # batch_size x image_enc_size
-            X_image = batch_samples['X_image']
+            if self.USE_CUDA:
+                X_bow = X_bow.cuda()
+                X_contextual = X_contextual.cuda()
 
             # forward pass
             self.model.zero_grad()
-            prior_mean, prior_variance, posterior_mean1, posterior_variance1, posterior_log_variance1, \
-            posterior_mean2, posterior_variance2, posterior_log_variance2, \
-            posterior_mean3, posterior_variance3, posterior_log_variance3, \
-            word_dists, thetas = self.model(X_bow, X_contextual, X_image)
+            posterior_mean1, posterior_variance1, posterior_mean2, posterior_variance2,\
+            posterior_log_variance2, word_dists, thetas = self.model(X_contextual)
 
             # backward pass
 
-            # Recon loss for lang1 and lang2 (no recon loss for image)
+            # RL for language1
             rl_loss1 = self._rl_loss(X_bow[:,0,:], word_dists[0])
+
+            # RL for language2
             rl_loss2 = self._rl_loss(X_bow[:,1,:], word_dists[1])
 
-            # # KL loss
-            # kl_en_de = self._kl_loss1(thetas[0], thetas[1])
-            # kl_en_image = self._kl_loss1(thetas[0], thetas[2])
-            # kl_de_image = self._kl_loss1(thetas[1], thetas[2])
+            # KL and contrastive loss
+            kl_loss = self._kl_loss(posterior_mean1, posterior_variance1, posterior_mean2, posterior_variance2,
+                                    posterior_log_variance2)
+            cl_loss = self._contrastive_loss(thetas[0], thetas[1])
 
-            # KL loss between posterior distributions of paired languages/modalities
-            kl_en_de = self._kl_loss(posterior_mean1, posterior_variance1,
-                                          posterior_mean2, posterior_variance2, posterior_log_variance2)
-            kl_en_image = self._kl_loss(posterior_mean1, posterior_variance1,
-                                          posterior_mean3, posterior_variance3, posterior_log_variance3)
-            kl_de_image = self._kl_loss(posterior_mean2, posterior_variance2,
-                                          posterior_mean3, posterior_variance3, posterior_log_variance3)
-
-            # InfoNCE loss/NTXentLoss
-            infoNCE_en_de = self._infoNCE_loss(thetas[0], thetas[1])
-            infoNCE_en_image = self._infoNCE_loss(thetas[0], thetas[2])
-            infoNCE_de_image = self._infoNCE_loss(thetas[1], thetas[2])
-
-            loss = rl_loss1 + rl_loss2 \
-                + self.weights["CL"]*infoNCE_en_de + self.weights["CL"]*infoNCE_en_image + self.weights["CL"]*infoNCE_de_image \
-                   + self.weights["KL"] * kl_en_de + self.weights["KL"] * kl_en_image + self.weights["KL"] * kl_de_image
-
-
+            loss = self.weights["beta"]*kl_loss + rl_loss1 + rl_loss2 + cl_loss
             loss = loss.sum()
 
             # compute train loss
@@ -443,16 +428,23 @@ class MultimodalContrastiveTM:
                 collect_theta = []
 
                 for batch_samples in loader:
+                    # batch_size x vocab_size
+                    X_bow = batch_samples['X_bow']
+                    #print('X_bow orig:', X_bow.shape)
+                    X_bow = X_bow.squeeze(dim=1)
+                    #print('X_bow:', X_bow.shape)
 
                     # batch_size x L x bert_size
                     X_contextual = batch_samples['X_contextual']
+                    #print('X_contextual:', X_contextual.shape)
 
                     if self.USE_CUDA:
+                        X_bow = X_bow.cuda()
                         X_contextual = X_contextual.cuda()
 
                     # forward pass
                     self.model.zero_grad()
-                    thetas = self.model.get_theta(x=None, x_bert=X_contextual, lang_index=lang_index)
+                    thetas = self.model.get_theta(X_bow, X_contextual, lang_index)
                     collect_theta.extend(thetas.detach().cpu().numpy())
 
                 pbar.update(1)

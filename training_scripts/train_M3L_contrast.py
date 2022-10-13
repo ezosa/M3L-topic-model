@@ -81,7 +81,7 @@ qt = M3LTopicModelDataPreparation(args.sbert_model, vocabularies=vocab, image_em
 training_dataset = qt.fit(text_for_contextual=raw_docs, text_for_bow=preprocessed_docs, image_urls=image_urls)
 
 
-# initialize model
+# ----- initialize model -----
 loss_weights = {"KL": args.kl_weight,
                 "CL": args.cl_weight}
 m3l_contrast = MultimodalContrastiveTM(bow_size=qt.vocab_sizes[0],
@@ -93,10 +93,10 @@ m3l_contrast = MultimodalContrastiveTM(bow_size=qt.vocab_sizes[0],
                                        loss_weights=loss_weights
                                        )
 
-# start topic inference
+# ----- topic inference -----
 m3l_contrast.fit(training_dataset)
 
-# save trained model
+# ----- save model -----
 save_filepath = os.path.join(args.save_path, args.model_name
                              + "_K" + str(args.num_topics)
                              + "_epochs" + str(args.num_epochs)
