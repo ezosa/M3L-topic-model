@@ -11,9 +11,9 @@ We present M3L-Contrast--—a novel multimodal multilingual (M3L) neural topic m
 
 Paper: <https://aclanthology.org/2022.coling-1.355>
 
-Our model is based on the Contextualized Topic Model: <https://github.com/MilaNLProc/contextualized-topic-models>
+Our model is based on the [Contextualized Topic Model](https://github.com/MilaNLProc/contextualized-topic-models)
 
-We use the PyTorch Metric Learning library for the InfoNCE/NTXent loss: <https://github.com/KevinMusgrave/pytorch-metric-learning/>
+We use the PyTorch Metric Learning library for the [InfoNCE/NTXent loss](https://github.com/KevinMusgrave/pytorch-metric-learning/)
 
 ### Model architecture
 
