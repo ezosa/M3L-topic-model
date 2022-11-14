@@ -104,7 +104,7 @@ class MultimodalContrastiveTM:
         if loss_weights:
             self.weights = loss_weights
         else:
-            self.weights = {"KL": 0.01, "CL": 50}
+            self.weights = {"KL": 1, "CL": 100}
 
         # contrastive decoder
         self.model = ContrastiveM3LDecoderNetwork(
@@ -218,10 +218,14 @@ class MultimodalContrastiveTM:
             rl_loss1 = self._rl_loss(X_bow[:,0,:], word_dists[0])
             rl_loss2 = self._rl_loss(X_bow[:,1,:], word_dists[1])
 
-            # # KL loss
-            # kl_en_de = self._kl_loss1(thetas[0], thetas[1])
-            # kl_en_image = self._kl_loss1(thetas[0], thetas[2])
-            # kl_de_image = self._kl_loss1(thetas[1], thetas[2])
+
+            # KL losses between posterior distributions and a prior distribution
+            kl_en_prior = self._kl_loss(prior_mean, prior_variance,
+                                        posterior_mean1, posterior_variance1, posterior_log_variance1)
+            kl_de_prior = self._kl_loss(prior_mean, prior_variance,
+                                        posterior_mean2, posterior_variance2, posterior_log_variance2)
+            kl_image_prior = self._kl_loss(prior_mean, prior_variance,
+                                           posterior_mean3, posterior_variance3, posterior_log_variance3)
 
             # KL loss between posterior distributions of paired languages/modalities
             kl_en_de = self._kl_loss2(posterior_mean1, posterior_variance1,
@@ -237,7 +241,7 @@ class MultimodalContrastiveTM:
             infoNCE_de_image = self._infoNCE_loss(thetas[1], thetas[2])
 
             loss = rl_loss1 + rl_loss2 \
-                   + self.weights["KL"] * kl_en_de + self.weights["KL"] * kl_en_image + self.weights["KL"] * kl_de_image \
+                   + self.weights["KL"] * kl_en_prior + self.weights["KL"] * kl_de_prior + self.weights["KL"] * kl_image_prior \
                    + self.weights["CL"]*infoNCE_en_de + self.weights["CL"]*infoNCE_en_image + self.weights["CL"]*infoNCE_de_image
 
             loss = loss.sum()
