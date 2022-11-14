@@ -5,7 +5,7 @@ Our proposed topic model is:
 - multimodal (image-text) 
 - multimodal *and* multilingual (M3L)
 
-**Abstract**
+### Abstract
 
 We present M3L-Contrast--—a novel multimodal multilingual (M3L) neural topic model for comparable data that maps multilingual texts and images into a shared topic space using a contrastive objective. As a multilingual topic model, it produces aligned *language-specific topics* and as multimodal model, it infers textual representations of semantic concepts in images. We also show that our model performs almost as well on unaligned embeddings as it does on aligned embeddings.
 
@@ -24,8 +24,7 @@ We use the PyTorch Metric Learning library for the InfoNCE/NTXent loss: <https:/
 ```
 @inproceedings{zosa-pivovarova-2022-multilingual,
     title = "Multilingual and Multimodal Topic Modelling with Pretrained Embeddings",
-    author = "Zosa, Elaine  and
-      Pivovarova, Lidia",
+    author = "Zosa, Elaine  and  Pivovarova, Lidia",
     booktitle = "Proceedings of the 29th International Conference on Computational Linguistics",
     month = oct,
     year = "2022",
