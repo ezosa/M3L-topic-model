@@ -15,9 +15,9 @@ Our model is based on the Contextualized Topic Model: <https://github.com/MilaNL
 
 We use the PyTorch Metric Learning library for the InfoNCE/NTXent loss: <https://github.com/KevinMusgrave/pytorch-metric-learning/>
 
-### Multilingual Topic Model
+### Model architecture
 
-![Multilingual topic model architecture](https://github.com/ezosa/M3L-topic-model/blob/master/images/multilingual-only.png)
+![Multilingual and multimodal topic model architecture](https://github.com/ezosa/M3L-topic-model/blob/master/images/multilingual_and_multimodal.png)
 
 
 ### Citation
