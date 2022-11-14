@@ -20,11 +20,6 @@ We use the PyTorch Metric Learning library for the InfoNCE/NTXent loss: <https:/
 ![Multilingual topic model architecture](https://github.com/ezosa/M3L-topic-model/blob/master/images/multilingual-only.png)
 
 
-### Multimodal Topic Model
-
-![Multimodal topic model architecture](https://github.com/ezosa/M3L-topic-model/blob/master/images/multimodal-only.png)
-
-
 ### Citation
 ```
 @inproceedings{zosa-pivovarova-2022-multilingual,
