@@ -9,7 +9,7 @@ Our proposed topic model is:
 - multimodal (image-text) 
 - multimodal *and* multilingual (M3L)
 
-Our model is based on the [Contextualized Topic Model](https://github.com/MilaNLProc/contextualized-topic-models)(Bianchi et al., 2021)
+Our model is based on the [Contextualized Topic Model](https://github.com/MilaNLProc/contextualized-topic-models) (Bianchi et al., 2021)
 
 We use the PyTorch Metric Learning library for the [InfoNCE/NTXent loss](https://github.com/KevinMusgrave/pytorch-metric-learning/)
 
