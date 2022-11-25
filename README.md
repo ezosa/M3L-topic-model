@@ -18,6 +18,14 @@ We use the PyTorch Metric Learning library for the [InfoNCE/NTXent loss](https:/
 ![Multilingual and multimodal topic model architecture](https://github.com/ezosa/M3L-topic-model/blob/master/images/multilingual_and_multimodal.png)
 
 
+### Dataset
+- Aligned articles from the [Wikipedia Comparable Corpora](https://linguatools.org/tools/corpora/wikipedia-comparable-corpora/)
+- We will release the article titles in the train and test sets (soon!)
+
+### Talks and slides
+- [Slides](https://blogs.helsinki.fi/language-technology/research-seminar/) and [video](https://unitube.it.helsinki.fi/unitube/embed.html?id=dae2b02d-47e7-46b0-adc3-86da8034ed58) from my talk at the Helsinki Language Technology seminar
+
+
 ### Citation
 ```
 @inproceedings{zosa-pivovarova-2022-multilingual,
