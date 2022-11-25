@@ -20,10 +20,11 @@ We use the PyTorch Metric Learning library for the [InfoNCE/NTXent loss](https:/
 
 ### Dataset
 - Aligned articles from the [Wikipedia Comparable Corpora](https://linguatools.org/tools/corpora/wikipedia-comparable-corpora/)
-- We will release the article titles in the train and test sets (soon!)
+- Images from the [WIT](https://github.com/google-research-datasets/wit) dataset
+- We will release the article titles and image urls in the train and test sets (soon!)
 
 ### Talks and slides
-- [Slides](https://blogs.helsinki.fi/language-technology/research-seminar/) and [video](https://unitube.it.helsinki.fi/unitube/embed.html?id=dae2b02d-47e7-46b0-adc3-86da8034ed58) from my talk at the Helsinki Language Technology seminar
+- [Slides](https://blogs.helsinki.fi/language-technology/files/2022/11/LT-seminar-Elaine-Zosa-2022-11-10.pdf) and [video](https://unitube.it.helsinki.fi/unitube/embed.html?id=dae2b02d-47e7-46b0-adc3-86da8034ed58) from my talk at the Helsinki Language Technology seminar
 
 
 ### Citation
