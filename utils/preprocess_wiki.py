@@ -73,13 +73,13 @@ def parse_wikipedia_xml_dump(xml_path, lang='de'):
 
 
 def align_wikipedia_titles(xml_path, lang_pair='de-en'):
-    """ Extracts titles and aligned multilingual Wikipedia articles (https://linguatools.org/tools/corpora/wikipedia-monolingual-corpora/) and saves result to CSV"""
+    """ Extracts titles for aligned multilingual Wikipedia articles (https://linguatools.org/tools/corpora/wikipedia-monolingual-corpora/) and saves result to CSV"""
     print("Language pair:", lang_pair.upper())
     languages = lang_pair.split('-')
     lang1 = languages[0]
     lang2 = languages[1]
     df = {lang+"_title": [] for lang in languages}
-    wiki = open(xml_path,'r')
+    wiki = open(xml_path, 'r')
     tree = ET.parse(wiki)
     root = tree.getroot()
     for child in root:
@@ -100,4 +100,10 @@ def align_wikipedia_titles(xml_path, lang_pair='de-en'):
     df.to_csv(save_filename, index=None)
     print("Done! Dumped aligned titles for pair", lang_pair.upper(), "to", save_filename, "!")
 
+
+def combine_multilingual_wikipedia_articles(aligned_titles, lang1_articles, lang2_articles, lang1='de', lang2='en'):
+    """ Merges the aligned multilingual titles and extracted article contents """
+    df_merged = lang1_articles.merge(aligned_titles, on=[lang1 + "_title"])
+    df_merged = df_merged.merge(lang2_articles, on=[lang2 + "_title"])
+    return df_merged
 
