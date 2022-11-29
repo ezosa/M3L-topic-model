@@ -36,14 +36,14 @@ def parse_and_clean_wikicode(raw_content):
     return "\n\n".join(section_text)
 
 
-def parse_wikipedia_xml_dump(xml_path):
-    """ Extracts title and article content from Wikipedia XML dumps and saves result to CSV"""
+def parse_wikipedia_xml_dump(xml_path, lang='de'):
+    """ Extracts title and article content from Wikipedia XML dumps (https://dumps.wikimedia.org/) and saves result to CSV"""
     filepath = xml_path
     f = open(filepath, 'r')
     tree = ET.parse(f)
     root = tree.getroot()
-    articles = {'title':[], 'content':[]}
-    article_count = 0
+    articles = {lang + '_title': [],
+                lang + '_text': []}
     for child in root:
         if 'page' in child.tag:
             page = child
@@ -62,10 +62,9 @@ def parse_wikipedia_xml_dump(xml_path):
                                 text = txt.text.lower().strip()
                                 # check if article is long enough (by num of chars)
                                 if len(text) > 200 and len(article_title) > 0:
-                                    article_count += 1
-                                    articles['title'].append(article_title)
-                                    articles['content'].append(parse_and_clean_wikicode(text))
-    print("Done parsing.")
+                                    articles[lang + '_title'].append(article_title)
+                                    articles[lang + '_text': ].append(parse_and_clean_wikicode(text))
+    print("Done parsing. ")
     df = pd.DataFrame.from_dict(articles)
     csv_file = filepath[:-4] + ".csv"
     df.to_csv(csv_file, index=False)
@@ -73,5 +72,32 @@ def parse_wikipedia_xml_dump(xml_path):
     return csv_file
 
 
+def align_wikipedia_titles(xml_path, lang_pair='de-en'):
+    """ Extracts titles and aligned multilingual Wikipedia articles (https://linguatools.org/tools/corpora/wikipedia-monolingual-corpora/) and saves result to CSV"""
+    print("Language pair:", lang_pair.upper())
+    languages = lang_pair.split('-')
+    lang1 = languages[0]
+    lang2 = languages[1]
+    df = {lang+"_title": [] for lang in languages}
+    wiki = open(xml_path,'r')
+    tree = ET.parse(wiki)
+    root = tree.getroot()
+    for child in root:
+        if 'article' in child.tag:
+            article = child
+            lang1_art_title = article.attrib['name'].lower()
+            for child2 in article:
+                if 'crosslanguage_link' in child2.tag:
+                    cross_lang = child2
+                    lang_attrib = cross_lang.attrib['language']
+                    if lang_attrib == lang2:
+                        lang2_art_title = cross_lang.attrib['name'].lower()
+                        df[lang1].append(lang1_art_title)
+                        df[lang2].append(lang2_art_title)
+    print("Links:", len(df))
+    save_filename = 'wikipairs_titles_'+lang_pair+'.csv'
+    df = pd.DataFrame.from_dict(df)
+    df.to_csv(save_filename, index=None)
+    print("Done! Dumped aligned titles for pair", lang_pair.upper(), "to", save_filename, "!")
 
 
