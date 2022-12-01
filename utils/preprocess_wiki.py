@@ -83,6 +83,8 @@ def align_wikipedia_titles(xml_path, lang_pair='de-en'):
     tree = ET.parse(wiki)
     root = tree.getroot()
     for child in root:
+        if len(df[lang1+"_title"]) > 10000:
+            break
         if 'article' in child.tag:
             article = child
             lang1_art_title = article.attrib['name'].lower()
@@ -92,9 +94,9 @@ def align_wikipedia_titles(xml_path, lang_pair='de-en'):
                     lang_attrib = cross_lang.attrib['language']
                     if lang_attrib == lang2:
                         lang2_art_title = cross_lang.attrib['name'].lower()
-                        df[lang1].append(lang1_art_title)
-                        df[lang2].append(lang2_art_title)
-    print("Links:", len(df))
+                        df[lang1+"_title"].append(lang1_art_title)
+                        df[lang2+"_title"].append(lang2_art_title)
+    print("Links:", len(df[lang1+"_title"]))
     save_filename = 'wikipairs_titles_'+lang_pair+'.csv'
     df = pd.DataFrame.from_dict(df)
     df.to_csv(save_filename, index=None)
@@ -107,3 +109,23 @@ def combine_multilingual_wikipedia_articles(aligned_titles, lang1_articles, lang
     df_merged = df_merged.merge(lang2_articles, on=[lang2 + "_title"])
     return df_merged
 
+
+def extract_wikipedia_image_urls(image_tsv='train-00000-of-00005.tsv', lang='en'):
+    """ Extracts image urls and article titles for a given language from the WIT dataset"""
+    chunksize = 100000
+    df_reduced = {'image_url': [],
+                  lang + '_title': []}
+    with pd.read_csv(image_tsv, sep='\t', chunksize=chunksize) as reader:
+        for i, chunk in enumerate(reader):
+            df = chunk[chunk.language == lang]
+            df_reduced['image_url'].extend(list(df.image_url))
+            page_titles = list(df.page_title)
+            page_titles = [title.lower() for title in page_titles]
+            df_reduced[lang + '_title'].extend(list(page_titles))
+    df_reduced = pd.DataFrame.from_dict(df_reduced)
+    save_path = image_tsv[:-4] + '-' + lang + '.csv'
+    df_reduced.to_csv(save_path, index=False)
+
+
+wiki_corpus = "/users/zosaelai/project_dir/datasets/wiki/fiwiki-20181001-corpus.xml"
+align_wikipedia_titles(xml_path=wiki_corpus, lang_pair='fi-de')
