@@ -161,3 +161,84 @@ class WhiteSpacePreprocessingM3L():
         # unpreprocessed_data_final is a list of list of strings (original articles) and image urls
         # vocabulary is a list of list of words (separate vocabularies for each language)
         return preprocessed_data_final, unpreprocessed_data_final, vocabulary, image_urls_final
+
+
+# ----- Multilingual only -----
+class WhiteSpacePreprocessingMultilingual():
+    """
+    Provides a very simple preprocessing script for aligned multilingual documents
+    """
+    def __init__(self, documents, stopwords_languages, vocabulary_size=2000, min_len=10, custom_stops=None, max_len=200):
+        """
+
+        :param documents: list of lists of strings, e.g. [['good morning', 'thank you'], ['guten morgen', 'danke sie']]
+        :param stopwords_language: list  of strings of the languages (see nltk stopwords)
+        :param vocabulary_size: the number of most frequent words to include in the documents. Infrequent words will be discarded from the list of preprocessed documents
+        """
+        self.documents = documents
+        self.num_lang = len(stopwords_languages)
+        self.languages = stopwords_languages
+        self.stopwords = []
+        for lang in self.languages:
+            self.stopwords.append(set(stop_words.words(lang)))
+        # same vocab_size for all langs for now
+        self.vocabulary_size = vocabulary_size
+        # min/max article length after preprocessing
+        self.min_len = min_len
+        self.max_len = max_len
+        # if user has custom stopwords list
+        self.custom_stops = custom_stops
+
+    def preprocess(self):
+        """
+        Note that if after filtering some documents do not contain words we remove them. That is why we return also the
+        list of unpreprocessed documents.
+
+        :return: preprocessed documents, unpreprocessed documents and the vocabulary list
+        """
+        # truncate raw articles to the first max_len tokens
+        for l in range(self.num_lang):
+            truncated_docs = [' '.join(doc.split()[:self.max_len]) for doc in self.documents[l]]
+            self.documents[l] = truncated_docs
+
+        preprocessed_docs_tmp = []
+        vocabulary = []
+        for l in range(self.num_lang):
+            print("--- lang", l, ":", self.languages[l], "---")
+            preprocessed_docs = [doc.lower() for doc in self.documents[l]]
+            preprocessed_docs = [doc.translate(
+                str.maketrans(string.punctuation, ' ' * len(string.punctuation))) for doc in preprocessed_docs]
+            preprocessed_docs = [' '.join([w for w in doc.split() if len(w) > 2 and w not in self.stopwords[l]])
+                                 for doc in preprocessed_docs]
+            if self.custom_stops is not None:
+                preprocessed_docs = [' '.join([w for w in doc.split() if len(w) > 2 and w not in self.custom_stops[l]])
+                                     for doc in preprocessed_docs]
+            vectorizer = CountVectorizer(max_features=self.vocabulary_size, token_pattern=r'\b[a-zA-Z]{2,}\b')
+            vectorizer.fit_transform(preprocessed_docs)
+            vocabulary_lang = set(vectorizer.get_feature_names())
+            print('vocabulary_lang:', len(vocabulary_lang))
+            preprocessed_docs = [' '.join([w for w in doc.split() if w in vocabulary_lang]) for doc in preprocessed_docs]
+            preprocessed_docs_tmp.append(preprocessed_docs)
+            vocabulary.append(list(vocabulary_lang))
+            # print('vocab size:', len(vocabulary_lang))
+
+        preprocessed_docs_final = [[], []]
+        unpreprocessed_docs_final = [[], []]
+        # docs must be aligned across languages
+        for i in range(len(preprocessed_docs_tmp[0])):
+            doc1 = preprocessed_docs_tmp[0][i]
+            doc2 = preprocessed_docs_tmp[1][i]
+            if self.min_len <= len(doc1.split()) and self.min_len <= len(doc2.split()):
+                # truncate docs if they exceed max_len
+                # if len(doc1.split()) > self.max_len:
+                #     doc1 = " ".join(doc1.split()[:self.max_len])
+                # if len(doc2.split()) > self.max_len:
+                #     doc2 = " ".join(doc2.split()[:self.max_len])
+                preprocessed_docs_final[0].append(doc1)
+                preprocessed_docs_final[1].append(doc2)
+                unpreprocessed_docs_final[0].append(self.documents[0][i])
+                unpreprocessed_docs_final[1].append(self.documents[1][i])
+        # preprocessed_docs_final is a list of list of strings (processed articles)
+        # unpreprocessed_docs_final is a list of list of strings (original articles)
+        # vocabulary is a list of list of words (separate vocabularies for each language)
+        return preprocessed_docs_final, unpreprocessed_docs_final, vocabulary
