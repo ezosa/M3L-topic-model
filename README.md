@@ -25,6 +25,8 @@ We use the PyTorch Metric Learning library for the [InfoNCE/NTXent loss](https:/
 ### Talks and slides
 - [Slides](https://blogs.helsinki.fi/language-technology/files/2022/11/LT-seminar-Elaine-Zosa-2022-11-10.pdf) and [video](https://unitube.it.helsinki.fi/unitube/embed.html?id=dae2b02d-47e7-46b0-adc3-86da8034ed58) from my talk at the Helsinki Language Technology seminar
 
+### Trained models
+- [M3L topic model](https://www.dropbox.com/sh/0lc48k9o2ctzvrl/AADhM2TLq6XxVgNvU0WZ59nZa?dl=0) trained with CLIP embeddings
 
 ### Citation
 ```
