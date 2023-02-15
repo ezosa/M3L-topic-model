@@ -15,7 +15,7 @@ We use the PyTorch Metric Learning library for the [InfoNCE/NTXent loss](https:/
 
 ### Model architecture
 
-<img src="https://github.com/ezosa/M3L-topic-model/blob/master/images/multilingual_and_multimodal.png" width="230" height="350" />
+<img src="https://github.com/ezosa/M3L-topic-model/blob/master/images/multilingual_and_multimodal.png" width="250" height="350" />
 
 ### Dataset
 - Aligned articles from the [Wikipedia Comparable Corpora](https://linguatools.org/tools/corpora/wikipedia-comparable-corpora/)
