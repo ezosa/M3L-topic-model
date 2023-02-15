@@ -27,6 +27,7 @@ We use the PyTorch Metric Learning library for the [InfoNCE/NTXent loss](https:/
 
 ### Trained models
 We shared some of the models we trained:
+
 -[M3L topic model](https://www.dropbox.com/sh/0lc48k9o2ctzvrl/AADhM2TLq6XxVgNvU0WZ59nZa?dl=0) trained with CLIP embeddings
 -[M3L topic model](https://www.dropbox.com/sh/ilu7kypztd7pbli/AABCpy6hECPPOSPXRiFN2njFa?dl=0) trained with multilingual SBERT for text and CLIP for images
 -[M3L topic model](https://www.dropbox.com/scl/fo/oh6hrif37gynstt8a4wi7/h?dl=0&rlkey=034ozpeiaypfbv6fx9nht85co) trained with monolingual SBERT models for the English and German texts and CLIP for the images
