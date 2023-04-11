@@ -36,8 +36,9 @@ def parse_and_clean_wikicode(raw_content):
     return "\n\n".join(section_text)
 
 
-def parse_wikipedia_xml_dump(xml_path, lang='de'):
+def parse_wikipedia_xml_dump(xml_path, save_path=None, lang='de'):
     """ Extracts title and article content from Wikipedia XML dumps (https://dumps.wikimedia.org/) and saves result to CSV"""
+    print("Parsing XML", xml_path)
     filepath = xml_path
     f = open(filepath, 'r')
     tree = ET.parse(f)
@@ -63,12 +64,20 @@ def parse_wikipedia_xml_dump(xml_path, lang='de'):
                                 # check if article is long enough (by num of chars)
                                 if len(text) > 200 and len(article_title) > 0:
                                     articles[lang + '_title'].append(article_title)
-                                    articles[lang + '_text': ].append(parse_and_clean_wikicode(text))
-    print("Done parsing. ")
+                                    article_text = parse_and_clean_wikicode(text)
+                                    articles[lang + '_text'].append(article_text)
+                                    if len(articles[lang + '_title']) % 100 == 0:
+                                        print("Title:", article_title)
+                                        print("Article:", article_text[:100])
+                                        print("="*40)
+    print("Done parsing", len(articles[lang + '_title']), "articles")
     df = pd.DataFrame.from_dict(articles)
-    csv_file = filepath[:-4] + ".csv"
+    if save_path is None:
+        csv_file = filepath[:-4] + ".csv"
+    else:
+        csv_file = os.path.join(save_path, filepath[:-4] + ".csv")
     df.to_csv(csv_file, index=False)
-    print("Done! Saved Wiki articles as", csv_file, "!")
+    print("Done! Saved Wikipedia articles as", csv_file, "!")
     return csv_file
 
 
@@ -127,5 +136,3 @@ def extract_wikipedia_image_urls(image_tsv='train-00000-of-00005.tsv', lang='en'
     df_reduced.to_csv(save_path, index=False)
 
 
-wiki_corpus = "/users/zosaelai/project_dir/datasets/wiki/fiwiki-20181001-corpus.xml"
-align_wikipedia_titles(xml_path=wiki_corpus, lang_pair='fi-de')
